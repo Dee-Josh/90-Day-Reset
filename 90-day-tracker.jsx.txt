@@ -1,0 +1,601 @@
+import { useState, useEffect, useMemo, useRef } from "react";
+
+/* ---------- Plan content (from the PDF) ---------- */
+
+const START = new Date(2026, 9, 1);
+const dateOf = (n) => new Date(2026, 9, n); // n = day number; month overflow handled by Date
+const fmtLong = (d) => d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+const fmtShort = (d) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
+const PHASES = [
+  {
+    id: 1, name: "Return", range: "Oct 1–30", from: 1, to: 30, color: "#464aa3",
+    focus: "Spiritual restoration + personal realignment",
+    items: [
+      "Recover spiritual rhythm and sensitivity to God.",
+      "Write a one-page life/season vision.",
+      "Identify and reduce the 3 biggest sources of drift.",
+      "Stabilize sleep, prayer, Scripture, exercise and deep work.",
+      "Begin the primary 90-day skill and output.",
+    ],
+  },
+  {
+    id: 2, name: "Rebuild", range: "Oct 31–Nov 29", from: 31, to: 60, color: "#b9740c",
+    focus: "Discipline + capacity + execution",
+    items: [
+      "Turn routines into systems.",
+      "Complete about 10 focused skill-development hours each week.",
+      "Increase deep-work consistency.",
+      "Make visible progress on the 90-day output.",
+      "Stop depending on motivation.",
+    ],
+  },
+  {
+    id: 3, name: "Rise", range: "Nov 30–Dec 29", from: 61, to: 90, color: "#0c8573",
+    focus: "Execution + impact + momentum",
+    items: [
+      "Reduce unnecessary activity and focus.",
+      "Produce tangible work.",
+      "Finish the primary 90-day output.",
+      "Document what changed and what worked.",
+      "Prepare a clear next-season vision for 2027.",
+    ],
+  },
+];
+
+const WEEKS = [
+  { n: 1, title: "Reset", from: 1, to: 7, items: ["Complete spiritual/personal inventory.", "Write your one-page life/season vision.", "Clean your physical/digital environment.", "Fix your sleep/wake target.", "Choose your 90-day skill and output."] },
+  { n: 2, title: "Restore", from: 8, to: 14, items: ["Establish daily prayer + Scripture.", "Begin daily deep work.", "Begin exercise/movement rhythm.", "Reduce the 3 major distractions.", "Complete first meaningful skill/output session."] },
+  { n: 3, title: "Rebuild", from: 15, to: 21, items: ["Strengthen routines.", "Work consistently on your primary skill.", "Move the main project forward.", "Review relationships and commitments.", "Finish at least one small thing."] },
+  { n: 4, title: "Stabilize", from: 22, to: 30, items: ["Make the routine sustainable.", "Review October honestly.", "Identify recurring drift patterns.", "Increase consistency rather than intensity.", "Set November's measurable targets."] },
+  { n: 5, title: "Capacity", from: 31, to: 37, items: ["Learn deliberately.", "Practice the primary skill.", "Protect deep work blocks.", "Create something tangible.", "Complete weekly review."] },
+  { n: 6, title: "Discipline", from: 38, to: 44, items: ["Increase output.", "Reduce unnecessary screen time.", "Keep spiritual practices consistent.", "Maintain exercise/sleep.", "Push the main project forward."] },
+  { n: 7, title: "Execution", from: 45, to: 51, items: ["Stop overthinking.", "Make visible progress every workday.", "Finish a defined project component.", "Seek accountability where useful.", "Review what is actually producing results."] },
+  { n: 8, title: "Momentum", from: 52, to: 60, items: ["Keep systems running.", "Close unfinished October/November loops.", "Assess skill progress.", "Prepare the final-month push.", "Set December completion criteria."] },
+  { n: 9, title: "Focus", from: 61, to: 67, items: ["Eliminate nonessential activity.", "Prioritize the main output.", "Protect spiritual depth.", "Use deep work consistently.", "Track tangible progress."] },
+  { n: 10, title: "Production", from: 68, to: 74, items: ["Build/publish/complete.", "Push the main deliverable.", "Avoid starting unnecessary projects.", "Keep daily disciplines intact.", "Get feedback if needed."] },
+  { n: 11, title: "Completion", from: 75, to: 81, items: ["Finish what you started.", "Resolve remaining blockers.", "Document results.", "Celebrate legitimate wins.", "Prepare final review."] },
+  { n: 12, title: "Consolidation", from: 82, to: 88, items: ["Review the full 90-day journey.", "Document habits that worked.", "Identify lessons and recurring weaknesses.", "Complete remaining deliverables.", "Draft 2027 direction."] },
+  { n: 13, title: "Reflection + next level", from: 89, to: 90, items: ["Compare October 1 with December 29.", "Record spiritual, personal and practical changes.", "Define what continues into 2027.", "Set the next season's priorities.", "Give thanks and recommit."] },
+];
+
+const DAILY = [
+  "Prayer", "Scripture", "Journal / reflection", "Exercise / movement",
+  "90-minute deep work (or equivalent)", "Primary skill practice",
+  "Important responsibility completed", "Distraction controlled", "Evening review",
+];
+const MIN_DAY = ["10 minutes prayer", "10 minutes Scripture", "20 minutes important work", "10 minutes exercise", "5 minutes evening review"];
+
+const TARGETS = [
+  ["Spirit", "Have a consistent prayer and Scripture rhythm and greater sensitivity to God."],
+  ["Mind", "Develop deliberately through reading, learning and reflection."],
+  ["Body", "Improve sleep, movement, fitness and physical discipline."],
+  ["Vision", "Have a clear one-page life/season vision and priorities."],
+  ["Work", "Execute consistently on meaningful responsibilities."],
+  ["Skill", "Make measurable progress in ONE primary skill."],
+  ["Relationships", "Cultivate intentional, healthy and accountable relationships."],
+  ["Stewardship", "Manage time, attention, money and commitments more intentionally."],
+  ["Output", "Finish one tangible 90-day project, product, milestone or body of work."],
+];
+
+const RULES = [
+  ["Never miss twice.", "A bad day does not need to become a bad week."],
+  ["Continue, don't restart.", "If you fall off on Tuesday, resume Wednesday."],
+  ["Use minimum viable discipline.", "On difficult days, do the minimum rather than abandoning the rhythm."],
+  ["Apply more than you consume.", "Information is not the same as transformation."],
+  ["Finish.", "Build a culture of completion: less 'I'm planning to'; more 'it's done.'"],
+];
+
+const OS = [
+  ["Morning", "Prayer, Scripture, journal, review priorities, begin important work before unnecessary scrolling."],
+  ["Deep work", "At least 90 minutes focused on the day's most important task."],
+  ["Skill", "Deliberate practice toward your one primary 90-day skill."],
+  ["Body", "Exercise/movement, intentional food and hydration, protect sleep."],
+  ["Evening", "Review the day: obedience, drift, lessons, unfinished priorities."],
+];
+
+const WEEK_REVIEW_Q = ["What went well?", "Where did I drift?", "What did God teach me?", "What must change next week?", "One thing I must finish"];
+const PHASE_Q = ["What must be true by the end of this phase?", "What will I stop doing?", "What will I start doing?"];
+
+/* ---------- helpers ---------- */
+
+const phaseOf = (n) => PHASES.find((p) => n >= p.from && n <= p.to);
+const weekOf = (n) => WEEKS.find((w) => n >= w.from && n <= w.to);
+const emptyDay = () => ({ checks: Array(9).fill(false), win: "", won: "", drift: "", tomorrow: "" });
+const count = (d) => (d ? d.checks.filter(Boolean).length : 0);
+
+function todayNumber() {
+  const now = new Date();
+  const t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((t0 - START) / 86400000) + 1; // may be <1 or >90
+}
+
+const STORAGE_KEY = "plan90-v1";
+
+/* ---------- small components ---------- */
+
+function Field({ label, value, onChange, rows = 2, placeholder }) {
+  return (
+    <label className="field">
+      <span className="field-label">{label}</span>
+      <textarea rows={rows} value={value || ""} placeholder={placeholder || "Write here"} onChange={(e) => onChange(e.target.value)} />
+    </label>
+  );
+}
+
+function CheckRow({ label, checked, onToggle, color }) {
+  return (
+    <button type="button" className={"check" + (checked ? " on" : "")} style={{ "--c": color }} onClick={onToggle} role="checkbox" aria-checked={checked}>
+      <span className="box" aria-hidden="true">{checked ? "✓" : ""}</span>
+      <span className="check-text">{label}</span>
+    </button>
+  );
+}
+
+/* ---------- main ---------- */
+
+export default function Tracker() {
+  const todayN = todayNumber();
+  const todayClamped = Math.min(90, Math.max(1, todayN));
+
+  const [data, setData] = useState({ days: {}, weeks: {}, plan: { targets: {}, skill: "", output: "", drift: ["", "", ""], phases: {}, phaseChecks: {} } });
+  const [loaded, setLoaded] = useState(false);
+  const [saveState, setSaveState] = useState("idle"); // idle | saving | saved | unavailable
+  const [view, setView] = useState("day");
+  const [sel, setSel] = useState(todayClamped);
+  const timer = useRef(null);
+  const didLoad = useRef(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await window.storage.get(STORAGE_KEY);
+        if (r && r.value) {
+          const parsed = JSON.parse(r.value);
+          setData((d) => ({ ...d, ...parsed, plan: { ...d.plan, ...(parsed.plan || {}) } }));
+        }
+      } catch (e) {
+        /* first visit: nothing saved yet */
+      }
+      didLoad.current = true;
+      setLoaded(true);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!didLoad.current) return;
+    setSaveState("saving");
+    clearTimeout(timer.current);
+    timer.current = setTimeout(async () => {
+      try {
+        const r = await window.storage.set(STORAGE_KEY, JSON.stringify(data));
+        setSaveState(r ? "saved" : "unavailable");
+      } catch (e) {
+        setSaveState("unavailable");
+      }
+    }, 500);
+    return () => clearTimeout(timer.current);
+  }, [data]);
+
+  /* updaters */
+  const getDay = (n) => data.days[n] || emptyDay();
+  const patchDay = (n, patch) => setData((d) => ({ ...d, days: { ...d.days, [n]: { ...(d.days[n] || emptyDay()), ...patch } } }));
+  const toggleDay = (n, i) => {
+    const cur = getDay(n);
+    const checks = cur.checks.map((v, k) => (k === i ? !v : v));
+    patchDay(n, { checks });
+  };
+  const getWeek = (n) => data.weeks[n] || { checks: Array(5).fill(false), top: ["", "", ""], review: Array(5).fill("") };
+  const patchWeek = (n, patch) => setData((d) => ({ ...d, weeks: { ...d.weeks, [n]: { ...(d.weeks[n] || { checks: Array(5).fill(false), top: ["", "", ""], review: Array(5).fill("") }), ...patch } } }));
+  const patchPlan = (patch) => setData((d) => ({ ...d, plan: { ...d.plan, ...patch } }));
+  const setIn = (arr, i, v) => arr.map((x, k) => (k === i ? v : x));
+
+  /* stats */
+  const stats = useMemo(() => {
+    let full = 0, partial = 0;
+    for (let n = 1; n <= 90; n++) {
+      const c = count(data.days[n]);
+      if (c === 9) full++;
+      else if (c > 0) partial++;
+    }
+    let streak = 0;
+    let n = Math.min(90, Math.max(0, todayN));
+    if (n >= 1 && count(data.days[n]) < 9) n -= 1; // today may still be in progress
+    while (n >= 1 && count(data.days[n]) === 9) { streak++; n--; }
+    return { full, partial, streak };
+  }, [data.days, todayN]);
+
+  const phase = phaseOf(sel);
+  const week = weekOf(sel);
+  const dayData = getDay(sel);
+  const dayCount = count(dayData);
+  const yesterdayMissed = sel === todayN && sel > 1 && count(data.days[sel - 1]) === 0;
+
+  const cellStatus = (n) => {
+    const c = count(data.days[n]);
+    if (c === 9) return "full";
+    if (c > 0) return "part";
+    if (n < todayN) return "miss";
+    return "future";
+  };
+
+  const goDay = (n) => { setSel(n); setView("day"); window.scrollTo?.({ top: 0 }); };
+
+  return (
+    <div className="app">
+      <style>{CSS}</style>
+
+      {/* ---------- Top: overall check view ---------- */}
+      <header className="top">
+        <div className="title-row">
+          <div>
+            <h1>90-Day Back on Track</h1>
+            <p className="sub">Oct 1 to Dec 29, 2026. Return, rebuild, rise.</p>
+          </div>
+          <div className="save" data-state={saveState}>
+            {!loaded ? "Loading" : saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : saveState === "unavailable" ? "Not saving" : "Ready"}
+          </div>
+        </div>
+
+        <div className="stats">
+          <div><b>{todayN < 1 ? "Starts Oct 1" : todayN > 90 ? "Finished" : `Day ${todayN}`}</b><span>of 90</span></div>
+          <div><b>{stats.full}</b><span>full days</span></div>
+          <div><b>{stats.streak}</b><span>day streak</span></div>
+          <div><b>{stats.partial}</b><span>partial days</span></div>
+        </div>
+
+        <div className="grid-wrap">
+          {PHASES.map((p) => (
+            <div className="phase-row" key={p.id}>
+              <div className="phase-tag" style={{ color: p.color }}>
+                <b>{p.name}</b>
+                <span>{p.range}</span>
+              </div>
+              <div className="cells">
+                {Array.from({ length: 30 }, (_, i) => p.from + i).map((n) => {
+                  const st = cellStatus(n);
+                  const c = count(data.days[n]);
+                  const op = st === "full" ? 1 : st === "part" ? 0.22 + 0.55 * (c / 9) : 1;
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      className={`cell ${st}${n === todayN ? " today" : ""}${n === sel ? " sel" : ""}`}
+                      style={{ "--c": p.color, "--o": op }}
+                      onClick={() => goDay(n)}
+                      aria-label={`Day ${n}, ${fmtShort(dateOf(n))}, ${c} of 9 done`}
+                    >
+                      <i />
+                      <em>{st === "full" ? "✓" : n}</em>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          <div className="legend">
+            <span><i className="lg full" />All 9 done</span>
+            <span><i className="lg part" />Some done</span>
+            <span><i className="lg miss" />Missed</span>
+            <span><i className="lg future" />Ahead</span>
+          </div>
+        </div>
+
+        <nav className="tabs" role="tablist">
+          {[["day", "Day"], ["week", "Week"], ["plan", "Plan"]].map(([k, l]) => (
+            <button key={k} role="tab" aria-selected={view === k} className={view === k ? "active" : ""} onClick={() => setView(k)}>{l}</button>
+          ))}
+        </nav>
+      </header>
+
+      <main>
+        {/* ---------- DAY ---------- */}
+        {view === "day" && (
+          <section>
+            <div className="nav-row">
+              <button className="step" disabled={sel <= 1} onClick={() => setSel(sel - 1)} aria-label="Previous day">‹</button>
+              <div className="nav-mid">
+                <div className="kicker" style={{ color: phase.color }}>{phase.name}, Week {week.n}</div>
+                <h2>Day {sel}</h2>
+                <div className="date">{fmtLong(dateOf(sel))}</div>
+              </div>
+              <button className="step" disabled={sel >= 90} onClick={() => setSel(sel + 1)} aria-label="Next day">›</button>
+            </div>
+
+            {sel !== todayClamped && (
+              <button className="link" onClick={() => setSel(todayClamped)}>Jump to today</button>
+            )}
+
+            {yesterdayMissed && (
+              <div className="nudge">Yesterday was missed. Never miss twice: even the minimum day counts today.</div>
+            )}
+
+            <Field label="Today's one most important win (set it this morning)" rows={2} value={dayData.win} onChange={(v) => patchDay(sel, { win: v })} />
+
+            <div className="card">
+              <div className="card-head">
+                <h3>Daily checklist</h3>
+                <span className="frac" style={{ color: phase.color }}>{dayCount}/9</span>
+              </div>
+              <div className="bar"><div style={{ width: `${(dayCount / 9) * 100}%`, background: phase.color }} /></div>
+              {DAILY.map((l, i) => (
+                <CheckRow key={l} label={l} color={phase.color} checked={dayData.checks[i]} onToggle={() => toggleDay(sel, i)} />
+              ))}
+              <details className="min">
+                <summary>Minimum viable day</summary>
+                <ul>{MIN_DAY.map((m) => <li key={m}>{m}</li>)}</ul>
+                <p>A minimum day is not the goal. It is the safety net that prevents one difficult day from becoming a lost week.</p>
+              </details>
+            </div>
+
+            <div className="card">
+              <h3>Evening review</h3>
+              <Field label="Today's most important win" value={dayData.won} onChange={(v) => patchDay(sel, { won: v })} />
+              <Field label="Where did I drift?" value={dayData.drift} onChange={(v) => patchDay(sel, { drift: v })} />
+              <Field label="What will I do differently tomorrow?" value={dayData.tomorrow} onChange={(v) => patchDay(sel, { tomorrow: v })} />
+            </div>
+
+            <div className="pager">
+              <button className="step wide" disabled={sel <= 1} onClick={() => setSel(sel - 1)}>‹ Day {sel - 1}</button>
+              <button className="step wide" disabled={sel >= 90} onClick={() => setSel(sel + 1)}>Day {sel + 1} ›</button>
+            </div>
+          </section>
+        )}
+
+        {/* ---------- WEEK ---------- */}
+        {view === "week" && (() => {
+          const w = week;
+          const wd = getWeek(w.n);
+          const wp = phaseOf(w.from);
+          const days = Array.from({ length: w.to - w.from + 1 }, (_, i) => w.from + i);
+          const weekFull = days.filter((n) => count(data.days[n]) === 9).length;
+          return (
+            <section>
+              <div className="nav-row">
+                <button className="step" disabled={w.n <= 1} onClick={() => setSel(WEEKS[w.n - 2].from)} aria-label="Previous week">‹</button>
+                <div className="nav-mid">
+                  <div className="kicker" style={{ color: wp.color }}>{wp.name}</div>
+                  <h2>Week {w.n}: {w.title}</h2>
+                  <div className="date">{fmtShort(dateOf(w.from))} to {fmtShort(dateOf(w.to))}, {weekFull} of {days.length} days complete</div>
+                </div>
+                <button className="step" disabled={w.n >= 13} onClick={() => setSel(WEEKS[w.n].from)} aria-label="Next week">›</button>
+              </div>
+
+              <div className="week-days">
+                {days.map((n) => {
+                  const c = count(data.days[n]);
+                  return (
+                    <button key={n} className={"wd" + (n === sel ? " sel" : "")} onClick={() => goDay(n)} style={{ "--c": wp.color }}>
+                      <span>{dateOf(n).toLocaleDateString(undefined, { weekday: "short" })}</span>
+                      <b>{dateOf(n).getDate()}</b>
+                      <small>{c}/9</small>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="card">
+                <h3>This week's focus</h3>
+                {w.items.map((l, i) => (
+                  <CheckRow key={l} label={l} color={wp.color} checked={wd.checks[i]} onToggle={() => patchWeek(w.n, { checks: setIn(wd.checks, i, !wd.checks[i]) })} />
+                ))}
+              </div>
+
+              <div className="card">
+                <h3>This week's top 3</h3>
+                {[0, 1, 2].map((i) => (
+                  <label className="top3" key={i}>
+                    <span style={{ background: wp.color }}>{i + 1}</span>
+                    <input value={wd.top[i]} placeholder="Write here" onChange={(e) => patchWeek(w.n, { top: setIn(wd.top, i, e.target.value) })} />
+                  </label>
+                ))}
+              </div>
+
+              <div className="card">
+                <h3>Weekly review</h3>
+                {WEEK_REVIEW_Q.map((q, i) => (
+                  <Field key={q} label={q} value={wd.review[i]} onChange={(v) => patchWeek(w.n, { review: setIn(wd.review, i, v) })} />
+                ))}
+              </div>
+            </section>
+          );
+        })()}
+
+        {/* ---------- PLAN ---------- */}
+        {view === "plan" && (
+          <section>
+            <blockquote className="verse">
+              “Remember therefore from where you have fallen; repent and do the first works.”
+              <cite>Revelation 2:5</cite>
+            </blockquote>
+
+            <div className="card">
+              <h3>Five rules</h3>
+              <ol className="rules">
+                {RULES.map(([a, b]) => (
+                  <li key={a}><b>{a}</b> {b}</li>
+                ))}
+              </ol>
+            </div>
+
+            <div className="card">
+              <h3>My 90-day targets</h3>
+              <p className="hint">By December 29, I want to…</p>
+              {TARGETS.map(([area, def]) => (
+                <Field
+                  key={area}
+                  label={area}
+                  placeholder={def}
+                  value={data.plan.targets[area]}
+                  onChange={(v) => patchPlan({ targets: { ...data.plan.targets, [area]: v } })}
+                />
+              ))}
+              <Field label="My primary 90-day skill" rows={1} value={data.plan.skill} onChange={(v) => patchPlan({ skill: v })} />
+              <Field label="My 90-day output / project" rows={2} value={data.plan.output} onChange={(v) => patchPlan({ output: v })} />
+              <div className="sub-label">My three biggest sources of drift to reduce</div>
+              {[0, 1, 2].map((i) => (
+                <label className="top3" key={i}>
+                  <span style={{ background: "#464aa3" }}>{i + 1}</span>
+                  <input value={data.plan.drift[i]} placeholder="Write here" onChange={(e) => patchPlan({ drift: setIn(data.plan.drift, i, e.target.value) })} />
+                </label>
+              ))}
+            </div>
+
+            {PHASES.map((p) => {
+              const pc = data.plan.phaseChecks[p.id] || Array(5).fill(false);
+              const pr = data.plan.phases[p.id] || ["", "", ""];
+              return (
+                <div className="card" key={p.id} style={{ borderTop: `4px solid ${p.color}` }}>
+                  <h3 style={{ color: p.color }}>Phase {p.id}: {p.name}</h3>
+                  <p className="hint">{p.range}, {p.focus}</p>
+                  {p.items.map((l, i) => (
+                    <CheckRow key={l} label={l} color={p.color} checked={pc[i]} onToggle={() => patchPlan({ phaseChecks: { ...data.plan.phaseChecks, [p.id]: setIn(pc, i, !pc[i]) } })} />
+                  ))}
+                  <div className="sub-label">Phase review</div>
+                  {PHASE_Q.map((q, i) => (
+                    <Field key={q} label={q} value={pr[i]} onChange={(v) => patchPlan({ phases: { ...data.plan.phases, [p.id]: setIn(pr, i, v) } })} />
+                  ))}
+                </div>
+              );
+            })}
+
+            <div className="card">
+              <h3>Daily operating system</h3>
+              <p className="hint">Adjust the clock times to your real schedule; keep the order and priorities.</p>
+              <dl className="os">
+                {OS.map(([a, b]) => (
+                  <div key={a}><dt>{a}</dt><dd>{b}</dd></div>
+                ))}
+              </dl>
+            </div>
+          </section>
+        )}
+      </main>
+    </div>
+  );
+}
+
+/* ---------- styles ---------- */
+
+const CSS = `
+.app{--ink:#1a1e3a;--mut:#636889;--line:#d5d8e6;--bg:#eceef6;--card:#fff;
+  font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg);min-height:100vh;
+  max-width:720px;margin:0 auto;padding-bottom:64px;font-size:16px;line-height:1.45}
+.app *{box-sizing:border-box}
+.app button{font:inherit;color:inherit;cursor:pointer}
+.app button:focus-visible,.app textarea:focus-visible,.app input:focus-visible,.app summary:focus-visible{outline:3px solid #7c83ff;outline-offset:2px}
+
+.top{background:var(--ink);color:#fff;padding:18px 14px 0;border-radius:0 0 22px 22px;position:sticky;top:0;z-index:5;box-shadow:0 6px 18px rgba(26,30,58,.25)}
+.title-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.top h1{font-family:"Iowan Old Style",Palatino,"Palatino Linotype",Georgia,serif;font-size:24px;line-height:1.1;margin:0;font-weight:700;letter-spacing:.2px}
+.sub{margin:4px 0 0;color:#b8bcdb;font-size:13px}
+.save{font-size:12px;padding:3px 9px;border-radius:99px;background:rgba(255,255,255,.12);color:#cfd3ef;white-space:nowrap}
+.save[data-state=saved]{color:#8fe3cf}
+.save[data-state=unavailable]{background:#7a2b3a;color:#fff}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:14px 0 12px}
+.stats div{background:rgba(255,255,255,.08);border-radius:10px;padding:7px 8px;display:flex;flex-direction:column}
+.stats b{font-size:16px;line-height:1.15}
+.stats span{font-size:11.5px;color:#b8bcdb}
+
+.grid-wrap{display:flex;flex-direction:column;gap:7px}
+.phase-row{display:grid;grid-template-columns:62px 1fr;gap:8px;align-items:center}
+.phase-tag{display:flex;flex-direction:column;font-size:12px;line-height:1.2;filter:brightness(1.9) saturate(.9)}
+.phase-tag b{font-size:13px}
+.phase-tag span{color:#b8bcdb;filter:none;font-size:10.5px}
+.cells{display:grid;grid-template-columns:repeat(15,1fr);gap:3px}
+.cell{position:relative;aspect-ratio:1;border:0;border-radius:6px;padding:0;background:transparent;display:grid;place-items:center;min-width:0}
+.cell i{position:absolute;inset:0;border-radius:6px;background:var(--c);opacity:var(--o)}
+.cell em{position:relative;font-style:normal;font-size:10px;font-weight:600;color:#fff}
+.cell.part em{color:#fff}
+.cell.future i{background:transparent;border:1px dashed rgba(255,255,255,.28);opacity:1}
+.cell.future em{color:#9da2c9}
+.cell.miss i{background:rgba(255,255,255,.13);opacity:1}
+.cell.miss em{color:#c7cbe6}
+.cell.full em{font-size:11px}
+.cell.today{box-shadow:0 0 0 2px #fff}
+.cell.sel:not(.today){box-shadow:0 0 0 2px #ffd56b}
+.cell.sel.today{box-shadow:0 0 0 2px #ffd56b}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11.5px;color:#b8bcdb;margin:4px 0 0 70px}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.lg{width:11px;height:11px;border-radius:3px;display:inline-block}
+.lg.full{background:#8c91e8}
+.lg.part{background:#8c91e8;opacity:.4}
+.lg.miss{background:rgba(255,255,255,.2)}
+.lg.future{border:1px dashed rgba(255,255,255,.4)}
+
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:12px}
+.tabs button{background:transparent;border:0;border-bottom:3px solid transparent;color:#b8bcdb;padding:10px 0 9px;font-weight:600;font-size:15px}
+.tabs button.active{color:#fff;border-bottom-color:#ffd56b}
+
+main{padding:16px 12px}
+.nav-row{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;gap:8px;margin-bottom:10px}
+.nav-mid{text-align:center}
+.nav-mid h2{font-family:"Iowan Old Style",Palatino,Georgia,serif;font-size:26px;margin:0;line-height:1.15}
+.kicker{font-size:13px;font-weight:700}
+.date{color:var(--mut);font-size:14px}
+.step{background:#fff;border:1px solid var(--line);border-radius:12px;height:44px;font-size:24px;line-height:1}
+.step:disabled{opacity:.35;cursor:default}
+.step.wide{font-size:15px;font-weight:600;padding:0 14px;height:46px}
+.pager{display:flex;justify-content:space-between;gap:10px;margin-top:6px}
+.pager .step{flex:1}
+.link{background:none;border:0;color:#464aa3;font-weight:600;text-decoration:underline;padding:4px 0;margin:0 auto 8px;display:block}
+
+.nudge{background:#fff3d6;border:1px solid #efd58b;color:#5d430a;padding:10px 12px;border-radius:12px;margin-bottom:12px;font-size:14.5px}
+
+.card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:14px;border:1px solid var(--line)}
+.card h3{margin:0 0 8px;font-size:17px}
+.card-head{display:flex;justify-content:space-between;align-items:baseline}
+.frac{font-weight:800;font-size:20px}
+.bar{height:8px;background:#e6e8f3;border-radius:99px;overflow:hidden;margin:4px 0 10px}
+.bar div{height:100%;border-radius:99px;transition:width .25s}
+.hint{color:var(--mut);font-size:13.5px;margin:-2px 0 10px}
+.sub-label{font-weight:700;font-size:14px;margin:14px 0 6px}
+
+.check{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:#f6f7fb;border:1px solid transparent;border-radius:12px;padding:12px;margin-bottom:6px;min-height:48px}
+.check .box{flex:none;width:26px;height:26px;border-radius:8px;border:2px solid #aab0cf;background:#fff;display:grid;place-items:center;color:#fff;font-weight:800;font-size:16px;line-height:1}
+.check.on{background:color-mix(in srgb,var(--c) 11%,#fff);border-color:color-mix(in srgb,var(--c) 40%,#fff)}
+.check.on .box{background:var(--c);border-color:var(--c)}
+.check.on .check-text{color:var(--mut);text-decoration:line-through;text-decoration-color:color-mix(in srgb,var(--c) 60%,#fff)}
+.check-text{font-size:15.5px}
+
+.min{margin-top:10px;font-size:14.5px}
+.min summary{cursor:pointer;font-weight:600;color:#464aa3;padding:6px 0}
+.min ul{margin:6px 0;padding-left:20px}
+.min p{color:var(--mut);margin:6px 0 0;font-size:13.5px}
+
+.field{display:block;margin-bottom:12px}
+.field-label{display:block;font-size:13.5px;font-weight:600;color:var(--mut);margin-bottom:5px}
+.field textarea,.top3 input{width:100%;font:inherit;font-size:16px;color:var(--ink);background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;resize:vertical}
+.field textarea:focus,.top3 input:focus{border-color:#7c83ff}
+.card .field:last-child{margin-bottom:0}
+main > section > .field{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:14px}
+
+.top3{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.top3 span{flex:none;width:28px;height:28px;border-radius:50%;color:#fff;font-weight:700;display:grid;place-items:center;font-size:14px}
+
+.week-days{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px;margin-bottom:14px;overflow-x:auto}
+.wd{background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;align-items:center;min-width:44px}
+.wd span{font-size:11.5px;color:var(--mut)}
+.wd b{font-size:18px}
+.wd small{font-size:11.5px;color:var(--c);font-weight:700}
+.wd.sel{border:2px solid var(--c)}
+
+.verse{margin:0 0 14px;padding:16px;border-radius:16px;background:var(--ink);color:#fff;font-family:"Iowan Old Style",Palatino,Georgia,serif;font-size:18px;line-height:1.45}
+.verse cite{display:block;margin-top:8px;font-style:normal;font-size:13px;color:#b8bcdb;font-family:ui-sans-serif,system-ui,sans-serif}
+.rules{margin:0;padding-left:22px}
+.rules li{margin-bottom:8px}
+.os{margin:0}
+.os div{display:grid;grid-template-columns:84px 1fr;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+.os div:first-child{border-top:0}
+.os dt{font-weight:700}
+.os dd{margin:0;color:#3b4064;font-size:14.5px}
+
+@media (max-width:420px){
+  .phase-row{grid-template-columns:54px 1fr}
+  .legend{margin-left:62px}
+  .cells{gap:2px}
+  .cell em{font-size:9px}
+}
+@media (prefers-reduced-motion:reduce){.bar div{transition:none}}
+`;
