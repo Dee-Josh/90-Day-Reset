@@ -61,7 +61,7 @@ const DAILY = [
   "90-minute deep work (or equivalent)", "Primary skill practice",
   "Important responsibility completed", "Distraction controlled", "Evening review",
 ];
-const MIN_DAY = ["10 minutes prayer", "10 minutes Scripture", "20 minutes important work", "10 minutes exercise", "5 minutes evening review"];
+const MIN_DAY = ["1 hr prayer", "20 minutes Scripture", "20 minutes important work", "10 minutes exercise", "5 minutes evening review"];
 
 const TARGETS = [
   ["Spirit", "Have a consistent prayer and Scripture rhythm and greater sensitivity to God."],
