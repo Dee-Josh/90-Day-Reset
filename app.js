@@ -162,13 +162,13 @@ function renderTop() {
     let cells = "";
     for (let d = p.from; d <= p.to; d++) {
       const c = count(data.days[d]);
-      const st = c === 9 ? "full" : c > 0 ? "part" : d < todayN ? "miss" : "future";
+      const st = c === 12 ? "full" : c > 0 ? "part" : d < todayN ? "miss" : "future";
       const op = st === "part" ? 0.22 + 0.55 * (c / 9) : 1;
-      cells += `<button type="button" class="cell ${st}${d === todayN ? " today" : ""}${d === sel ? " sel" : ""}" style="--c:${p.color};--o:${op}" data-a="day" data-n="${d}" aria-label="Day ${d}, ${fmtShort(dateOf(d))}, ${c} of 9 done"><i></i><em>${st === "full" ? "✓" : d}</em></button>`;
+      cells += `<button type="button" class="cell ${st}${d === todayN ? " today" : ""}${d === sel ? " sel" : ""}" style="--c:${p.color};--o:${op}" data-a="day" data-n="${d}" aria-label="Day ${d}, ${fmtShort(dateOf(d))}, ${c} of 12 done"><i></i><em>${st === "full" ? "✓" : d}</em></button>`;
     }
     return `<div class="phase-row"><div class="phase-tag" style="color:${p.color}"><b>${p.name}</b><span>${p.range}</span></div><div class="cells">${cells}</div></div>`;
   }).join("") +
-    `<div class="legend"><span><i class="lg full"></i>All 9 done</span><span><i class="lg part"></i>Some done</span><span><i class="lg miss"></i>Missed</span><span><i class="lg future"></i>Ahead</span></div>`;
+    `<div class="legend"><span><i class="lg full"></i>All 12 done</span><span><i class="lg part"></i>Some done</span><span><i class="lg miss"></i>Missed</span><span><i class="lg future"></i>Ahead</span></div>`;
 
   document.querySelectorAll(".tabs button").forEach((b) => {
     b.classList.toggle("active", b.dataset.v === view);
@@ -191,8 +191,8 @@ function dayView() {
   ${missedYesterday ? `<div class="nudge">Yesterday was missed. Never miss twice: even the minimum day counts today.</div>` : ""}
   ${field("Today's one most important win (set it this morning)", d.win, 'data-s="day" data-k="win"')}
   <div class="card">
-    <div class="card-head"><h3>Daily checklist</h3><span class="frac" style="color:${p.color}">${c}/10</span></div>
-    <div class="bar"><div style="width:${(c / 9) * 100}%;background:${p.color}"></div></div>
+    <div class="card-head"><h3>Daily checklist</h3><span class="frac" style="color:${p.color}">${c}/12</span></div>
+    <div class="bar"><div style="width:${(c / 12) * 100}%;background:${p.color}"></div></div>
     ${DAILY.map((l, i) => checkRow(l, d.checks[i], p.color, `data-a="tday" data-i="${i}"`)).join("")}
     <details class="min"><summary>Minimum viable day</summary><ul>${MIN_DAY.map((m) => `<li>${m}</li>`).join("")}</ul><p>A minimum day is not the goal. It is the safety net that prevents one difficult day from becoming a lost week.</p></details>
   </div>
@@ -218,7 +218,7 @@ function weekView() {
     <div class="nav-mid"><div class="kicker" style="color:${wp.color}">${wp.name}</div><h2>Week ${w.n}: ${w.title}</h2><div class="date">${fmtShort(dateOf(w.from))} to ${fmtShort(dateOf(w.to))}, ${done} of ${days.length} days complete</div></div>
     <button class="step" ${w.n >= 13 ? "disabled" : ""} data-a="wstep" data-d="1" aria-label="Next week">›</button>
   </div>
-  <div class="week-days">${days.map((n) => `<button class="wd${n === sel ? " sel" : ""}" style="--c:${wp.color}" data-a="day" data-n="${n}"><span>${dateOf(n).toLocaleDateString(undefined, { weekday: "short" })}</span><b>${dateOf(n).getDate()}</b><small>${count(data.days[n])}/9</small></button>`).join("")}</div>
+  <div class="week-days">${days.map((n) => `<button class="wd${n === sel ? " sel" : ""}" style="--c:${wp.color}" data-a="day" data-n="${n}"><span>${dateOf(n).toLocaleDateString(undefined, { weekday: "short" })}</span><b>${dateOf(n).getDate()}</b><small>${count(data.days[n])}/12</small></button>`).join("")}</div>
   <div class="card"><h3>This week's focus</h3>${w.items.map((l, i) => checkRow(l, wd.checks[i], wp.color, `data-a="twk" data-i="${i}"`)).join("")}</div>
   <div class="card"><h3>This week's top 3</h3>${top3(wd.top, wp.color, 'data-s="wtop"')}</div>
   <div class="card"><h3>Weekly review</h3>${WEEK_REVIEW_Q.map((q, i) => field(q, wd.review[i], `data-s="wrev" data-i="${i}"`)).join("")}</div>`;
