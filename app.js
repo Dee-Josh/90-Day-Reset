@@ -57,9 +57,9 @@ const WEEKS = [
 ];
 
 const DAILY = [
-  "Prayer", "Scripture", "Journal / reflection", "Exercise / movement",
+  "Prayer", "Scripture", "Journal / reflection", "Exercise / movement", "Apply one mind-shaping principle from Battlefield of the Mind", "Daily book reading",
   "90-minute deep work (or equivalent)", "Primary skill practice",
-  "Important responsibility completed", "Distraction controlled", "Evening review",
+  "Important responsibility completed", "Distraction controlled", "Night Prayers", "Evening review & Learning applied?",
 ];
 const MIN_DAY = ["1 hr prayer", "20 minutes Scripture", "20 minutes important work", "10 minutes exercise", "5 minutes evening review"];
 
@@ -191,7 +191,7 @@ function dayView() {
   ${missedYesterday ? `<div class="nudge">Yesterday was missed. Never miss twice: even the minimum day counts today.</div>` : ""}
   ${field("Today's one most important win (set it this morning)", d.win, 'data-s="day" data-k="win"')}
   <div class="card">
-    <div class="card-head"><h3>Daily checklist</h3><span class="frac" style="color:${p.color}">${c}/9</span></div>
+    <div class="card-head"><h3>Daily checklist</h3><span class="frac" style="color:${p.color}">${c}/10</span></div>
     <div class="bar"><div style="width:${(c / 9) * 100}%;background:${p.color}"></div></div>
     ${DAILY.map((l, i) => checkRow(l, d.checks[i], p.color, `data-a="tday" data-i="${i}"`)).join("")}
     <details class="min"><summary>Minimum viable day</summary><ul>${MIN_DAY.map((m) => `<li>${m}</li>`).join("")}</ul><p>A minimum day is not the goal. It is the safety net that prevents one difficult day from becoming a lost week.</p></details>
